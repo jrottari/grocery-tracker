@@ -1,0 +1,21 @@
+# Python dependencies for grocery_tracker
+# Install: pip install -r requirements.txt
+
+# HTTP
+requests>=2.31.0
+
+# PDF parsing
+pdfplumber>=0.11.0
+pypdf>=4.0.0
+
+# OCR fallback (only needed for scanned/image PDFs)
+pytesseract>=0.3.10
+pdf2image>=1.17.0
+Pillow>=10.0.0
+
+# Scheduling
+schedule>=1.2.1
+
+# Optional: faster SQLite
+# sqlite-utils>=3.35.0  # handy CLI for inspecting the DB
+python-dotenv>=1.0.0
