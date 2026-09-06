@@ -62,17 +62,54 @@ python main.py export csv
 
 ## Weekly automation
 
-The system auto-detects new flyers on Wednesday (the standard grocery ad cycle):
+The pipeline runs automatically every **Wednesday at 9:00 AM America/New_York**
+via **GitHub Actions** (`.github/workflows/weekly-update.yml`), so it no longer
+depends on a local machine being powered on. The workflow:
 
-```bash
-# Run in background (tmux, screen, or as a systemd service)
-python main.py schedule
+1. Checks out the repo (which includes `data/grocery_tracker.db` — tracked in
+   git specifically so price history survives across stateless CI runs).
+2. Runs `update` → `categorize` → `export csv` → `history_append`, writing
+   exports into `exports/` (via the `EXPORT_DIR` env var — see below) instead
+   of the local iCloud Drive path.
+3. Commits and pushes the updated `data/grocery_tracker.db` and `exports/*`
+   back to `main`.
+
+GitHub Actions cron is UTC-only and doesn't shift for US daylight saving, so
+the workflow schedules two triggers (13:00 and 14:00 UTC) and a `check-time`
+job that skips whichever one doesn't actually land at 9am Eastern that day.
+It can also be run manually anytime from the **Actions** tab (`workflow_dispatch`).
+
+Required GitHub repo secrets (`gh secret set <NAME>`, values from `.env`):
+`BLS_API_KEY`, `FDC_API_KEY`, `POSTAL_CODE`.
+
+### Getting the results into iCloud Drive
+
+GitHub Actions has no access to iCloud, so a second, lightweight piece runs
+locally: a Windows Scheduled Task, **"Grocery Tracker iCloud Sync"**, that
+just pulls what GitHub already produced — no scraping, so timing isn't
+critical:
+
+```powershell
+# scripts/sync_to_icloud.ps1
+git fetch origin main && git merge --ff-only origin/main
+# copy exports/* into iCloudDrive\grocery_deals
 ```
 
-Or use cron:
-```cron
-0 8 * * 3 cd /path/to/grocery_tracker && python main.py update
+It's registered to run **at every logon** and **daily at 9:15 AM** (whichever
+comes first), so `iCloudDrive\grocery_deals\deals_history.csv` and the latest
+dated export stay current without needing the laptop on at 9am Wednesday —
+only on at *some* point afterward. Set it up once with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup_icloud_sync_task.ps1
 ```
+
+This also disables the old "Grocery Tracker Weekly Update" task, which ran
+the full scrape locally and only worked when the PC happened to be on.
+
+`main.py schedule` (running the full pipeline on a loop via the `schedule`
+library) still works for local/manual use, but is no longer how the weekly
+run actually happens.
 
 ## Manual PDF import (BJ's, H Mart)
 
