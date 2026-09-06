@@ -193,7 +193,7 @@ def cmd_export(fmt: str = "csv", export_dir: str = None):
     from grocery_tracker.price_compare import export_deals_csv, export_deals_json
 
     if export_dir is None:
-        export_dir = r"C:\Users\user\iCloudDrive\grocery_deals"
+        export_dir = os.environ.get("EXPORT_DIR", r"C:\Users\user\iCloudDrive\grocery_deals")
 
     os.makedirs(export_dir, exist_ok=True)
     filepath = os.path.join(export_dir, f"deals_{date.today()}.{fmt}")
@@ -209,7 +209,7 @@ def cmd_append_history(export_dir: str = None):
     from grocery_tracker.price_compare import append_to_history
 
     if export_dir is None:
-        export_dir = r"C:\Users\user\iCloudDrive\grocery_deals"
+        export_dir = os.environ.get("EXPORT_DIR", r"C:\Users\user\iCloudDrive\grocery_deals")
 
     os.makedirs(export_dir, exist_ok=True)
     filepath = os.path.join(export_dir, "deals_history.csv")

@@ -1,10 +1,10 @@
 # ── Database & scraped data ───────────────────────────────────────
-*.db
+# grocery_tracker.db IS tracked (see below) so weekly GitHub Actions
+# runs can persist price history across runs on a stateless CI VM.
 *.db-shm
 *.db-wal
-data/
-flyer_cache/
-exports/
+data/flyer_cache/
+!data/grocery_tracker.db
 
 # ── Secrets ───────────────────────────────────────────────────────
 .env

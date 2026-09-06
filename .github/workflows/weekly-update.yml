@@ -1,0 +1,77 @@
+name: Weekly Grocery Update
+
+on:
+  schedule:
+    # GitHub Actions cron is UTC-only and doesn't shift for US DST, so we
+    # trigger at both possible UTC offsets for 9:00 AM America/New_York and
+    # let the check-time job filter out the wrong one.
+    - cron: "0 13 * * 3"  # 9:00 AM EDT (UTC-4, roughly Mar-Nov)
+    - cron: "0 14 * * 3"  # 9:00 AM EST (UTC-5, roughly Nov-Mar)
+  workflow_dispatch: {}   # allows manual "Run workflow" from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  check-time:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          hour=$(TZ='America/New_York' date +%H)
+          if [ "$hour" = "09" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: it's $hour:00 America/New_York, not 09:00 (this is the redundant DST-offset cron trigger)."
+          fi
+
+  update:
+    needs: check-time
+    if: needs.check-time.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr poppler-utils
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run weekly update
+        env:
+          BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
+          FDC_API_KEY: ${{ secrets.FDC_API_KEY }}
+          POSTAL_CODE: ${{ secrets.POSTAL_CODE }}
+          DB_PATH: data/grocery_tracker.db
+          EXPORT_DIR: exports
+        run: |
+          python main.py update
+          python main.py categorize
+          python main.py export csv
+          python main.py history_append
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/grocery_tracker.db exports/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Weekly grocery update $(date -u +%Y-%m-%d)"
+            git push
+          fi
