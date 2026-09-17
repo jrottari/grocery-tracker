@@ -305,6 +305,7 @@ def export_deals_csv(filepath: str = "deals_export.csv", **kwargs):
             JOIN products p ON p.id = pr.product_id
             JOIN stores   s ON s.id = pr.store_id
             WHERE pr.is_sale = 1
+              AND date(pr.valid_to) >= date('now')
             ORDER BY p.category, s.name, p.canonical_name
         """)
         rows = cur.fetchall()
