@@ -194,8 +194,7 @@ def parse_item(item: dict, store_id: int,
     if raw is None:
         return None
     try:
-        price_val = float(raw)
-        price = price_val / 100.0 if (price_val > 200 and isinstance(raw, int)) else price_val
+        price = float(raw)
     except (ValueError, TypeError):
         return None
 
@@ -206,8 +205,7 @@ def parse_item(item: dict, store_id: int,
     original_price = None
     if orig_raw is not None:
         try:
-            ov = float(orig_raw)
-            original_price = ov / 100.0 if (ov > 200 and isinstance(orig_raw, int)) else ov
+            original_price = float(orig_raw)
         except (ValueError, TypeError):
             pass
 
