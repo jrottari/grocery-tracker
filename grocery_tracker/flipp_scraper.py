@@ -116,6 +116,12 @@ ITEMS_URL      = FLIPPBACK_BASE + "/flyers/{flyer_id}/flyer_items"
 
 POSTAL_CODE = os.environ.get("POSTAL_CODE", "27601")
 
+# Highest price ever legitimately seen in these flyers is ~$70 (champagne,
+# charcuterie platters). Anything past this is almost certainly a Flipp
+# flyer-digitization error (e.g. a multi-size item getting the wrong size's
+# price attached), not a real grocery item.
+MAX_PLAUSIBLE_PRICE = 100.0
+
 TARGET_CHAINS = [
     "harris teeter",
     "food lion",
@@ -199,6 +205,13 @@ def parse_item(item: dict, store_id: int,
         return None
 
     if price <= 0:
+        return None
+
+    if price > MAX_PLAUSIBLE_PRICE:
+        logger.warning(
+            "Skipping %r ($%.2f) — implausible price, likely a flyer digitization error",
+            name, price,
+        )
         return None
 
     orig_raw = item.get("original_price") or item.get("was_price")
