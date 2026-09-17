@@ -74,9 +74,13 @@ depends on a local machine being powered on. The workflow:
 3. Commits and pushes the updated `data/grocery_tracker.db` and `exports/*`
    back to `main`.
 
-GitHub Actions cron is UTC-only and doesn't shift for US daylight saving, so
-the workflow schedules two triggers (13:00 and 14:00 UTC) and a `check-time`
-job that skips whichever one doesn't actually land at 9am Eastern that day.
+GitHub Actions scheduled triggers are best-effort and can run hours late
+(observed ~4-5h delays on this repo), so rather than gating on an exact
+"is it 9am Eastern" check — which silently skipped *every* scheduled run
+since it never landed in that exact hour — the workflow fires every 3 hours
+all day Wednesday (UTC) and a `check-time` job de-dupes by checking whether
+today's "Weekly grocery update" commit already exists, so exactly one real
+update happens whichever firing actually lands.
 It can also be run manually anytime from the **Actions** tab (`workflow_dispatch`).
 
 Required GitHub repo secrets (`gh secret set <NAME>`, values from `.env`):

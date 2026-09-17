@@ -2,11 +2,14 @@ name: Weekly Grocery Update
 
 on:
   schedule:
-    # GitHub Actions cron is UTC-only and doesn't shift for US DST, so we
-    # trigger at both possible UTC offsets for 9:00 AM America/New_York and
-    # let the check-time job filter out the wrong one.
-    - cron: "0 13 * * 3"  # 9:00 AM EDT (UTC-4, roughly Mar-Nov)
-    - cron: "0 14 * * 3"  # 9:00 AM EST (UTC-5, roughly Nov-Mar)
+    # GitHub Actions scheduled triggers are best-effort and are frequently
+    # delayed by several hours (observed: ~4-5h late on this repo). A single
+    # 9am-only trigger with an exact-hour gate meant every scheduled run
+    # silently skipped since the delayed firing never actually landed at
+    # 09:00 America/New_York. Instead, fire every 3 hours all day Wednesday
+    # (UTC) and de-dupe on the commit message so whichever firing actually
+    # lands still does exactly one real update.
+    - cron: "0 */3 * * 3"
   workflow_dispatch: {}   # allows manual "Run workflow" from the Actions tab
 
 permissions:
@@ -18,18 +21,19 @@ jobs:
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
+      - uses: actions/checkout@v4
       - id: check
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          hour=$(TZ='America/New_York' date +%H)
-          if [ "$hour" = "09" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
+          today=$(date -u +%Y-%m-%d)
+          if git log -1 --format=%s | grep -q "Weekly grocery update $today"; then
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: it's $hour:00 America/New_York, not 09:00 (this is the redundant DST-offset cron trigger)."
+            echo "Skipping: already ran today ($today) — this is a later re-fire of the same day's schedule."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
   update:
